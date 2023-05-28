@@ -1,3 +1,5 @@
+import tkinter as tk
+from tkinter import messagebox, filedialog
 from collections import Counter
 import os
 
@@ -36,12 +38,6 @@ def generar_codigos_huffman(arbol, codigo_actual, codigos):
         generar_codigos_huffman(arbol.izquierda, codigo_actual + '0', codigos)
         generar_codigos_huffman(arbol.derecha, codigo_actual + '1', codigos)
 
-def mostrar_tabla_huffman(codigos):
-    print("Letra\tFrecuencia\tCódigo Huffman")
-    for letra, codigo in codigos.items():
-        frecuencia = frecuencias[letra]
-        print(f"{letra}\t{frecuencia}\t\t{codigo}")
-
 def codificar_huffman(texto, arbol):
     codigos = {}
     generar_codigos_huffman(arbol, '', codigos)
@@ -52,51 +48,164 @@ def codificar_huffman(texto, arbol):
     
     return texto_codificado
 
-def decodificar_huffman(texto_codificado, arbol):
-    texto_decodificado = ''
-    nodo_actual = arbol
-    
-    for bit in texto_codificado:
-        if bit == '0':
-            nodo_actual = nodo_actual.izquierda
-        else:
-            nodo_actual = nodo_actual.derecha
-        
-        if nodo_actual.caracter is not None:
-            texto_decodificado += nodo_actual.caracter
-            nodo_actual = arbol
-    
-    return texto_decodificado
+def calcular_bytes(texto):
+    return len(texto.encode())
 
-archivo_entrada = "entrada.txt"
-if not os.path.isfile(archivo_entrada):
-    texto_inicial = "tres tristes tigres comian trigo en tres tristes platos, sentados en un trigal. sentados en un trigal, en tres tristes platos, comian trigo tres tristes tigres."
-    with open(archivo_entrada, "w") as archivo:
-        archivo.write(texto_inicial)
+def calcular_porcentaje_reduccion(texto_original, texto_codificado):
+    bytes_originales = calcular_bytes(texto_original)
+    bytes_codificados = calcular_bytes(texto_codificado)
+    porcentaje_reduccion = round((bytes_codificados / (bytes_originales * 8)) * 100, 2)
+    return porcentaje_reduccion
 
-with open(archivo_entrada, "r") as archivo:
-    texto = archivo.read()
+def abrir_ventana_codificar_texto():
+    def codificar_texto():
+        texto_original = texto_entrada.get("1.0", "end-1c")
 
-frecuencias = dict(Counter(texto))
-arbol = construir_arbol_huffman(frecuencias)
-codigos = {}
-generar_codigos_huffman(arbol, '', codigos)
+        frecuencias = dict(Counter(texto_original))
+        arbol = construir_arbol_huffman(frecuencias)
+        codigos = {}
+        generar_codigos_huffman(arbol, '', codigos)
 
-print("\nTexto original:", texto)
+        texto_codificado = codificar_huffman(texto_original, arbol)
 
-print("\nTabla Huffman:")
-mostrar_tabla_huffman(codigos)
+        salida_texto.delete("1.0", "end")
+        salida_texto.insert("1.0", texto_codificado)
 
-texto_codificado = codificar_huffman(texto, arbol)
-texto_decodificado = decodificar_huffman(texto_codificado, arbol)
+        tabla_huffman_texto.delete("1.0", "end")
+        tabla_huffman_texto.insert("1.0", "Letra\tFrecuencia\t\tCódigo Huffman\n")
+        for letra, codigo in codigos.items():
+            frecuencia = frecuencias[letra]
+            tabla_huffman_texto.insert("end", f"{letra}\t{frecuencia}\t\t{codigo}\n")
 
-print("\nTexto codificado:", texto_codificado)
-print("Texto decodificado:", texto_decodificado)
+        bytes_originales_label["text"] = f"Cantidad de bytes que usa el texto original: {len(texto_original) * 8}"
+        bytes_codificados_label["text"] = f"Cantidad de bytes que usa el texto codificado: {len(texto_codificado)}"
+        porcentaje_reduccion_label["text"] = f"El número de bits utilizados se ha reducido a: {round(len(texto_codificado) / (len(texto_original) * 8) * 100, 2)}%"
 
-print("\nCantidad de bytes que usa el texto original:\t", len(texto)*8)
-print("Cantidad de bytes que usa el texto codificado:\t", len(texto_codificado))
-print("El numero de bits utilizados se ha reducido a:\t", round(len(texto_codificado)/(len(texto)*8)*100, 2),"%")
+    ventana_codificar_texto = tk.Toplevel(ventana_principal)
+    ventana_codificar_texto.title("Codificar Texto")
 
-archivo_salida = "salida.txt"
-with open(archivo_salida, "w") as archivo:
-    archivo.write(texto_codificado)
+    etiqueta_entrada = tk.Label(ventana_codificar_texto, text="Texto a codificar:")
+    etiqueta_entrada.pack()
+
+    texto_entrada = tk.Text(ventana_codificar_texto, height=5, width=40)
+    texto_entrada.pack()
+
+    boton_codificar = tk.Button(ventana_codificar_texto, text="Codificar", command=codificar_texto)
+    boton_codificar.pack()
+
+    etiqueta_salida = tk.Label(ventana_codificar_texto, text="Texto codificado:")
+    etiqueta_salida.pack()
+
+    salida_texto = tk.Text(ventana_codificar_texto, height=5, width=40)
+    salida_texto.pack()
+
+    etiqueta_tabla_huffman = tk.Label(ventana_codificar_texto, text="Tabla de Huffman:")
+    etiqueta_tabla_huffman.pack()
+
+    tabla_huffman_texto = tk.Text(ventana_codificar_texto, height=10, width=40)
+    tabla_huffman_texto.pack()
+
+    bytes_originales_label = tk.Label(ventana_codificar_texto, text="Cantidad de bytes que usa el texto original:")
+    bytes_originales_label.pack()
+
+    bytes_codificados_label = tk.Label(ventana_codificar_texto, text="Cantidad de bytes que usa el texto codificado:")
+    bytes_codificados_label.pack()
+
+    porcentaje_reduccion_label = tk.Label(ventana_codificar_texto, text="El número de bits utilizados se ha reducido a:")
+    porcentaje_reduccion_label.pack()
+
+def abrir_ventana_codificar_archivo():
+    def codificar_archivo():
+        archivo = filedialog.askopenfilename(filetypes=[("Archivos de texto", "*.txt")])
+
+        if archivo:
+            ruta_entrada = os.path.abspath(archivo)
+            ruta_carpeta = os.path.dirname(archivo)
+            nombre_archivo = os.path.splitext(os.path.basename(ruta_entrada))[0]
+
+            with open(archivo, "r") as archivo_entrada:
+                texto_original = archivo_entrada.read()
+
+            frecuencias = dict(Counter(texto_original))
+            arbol = construir_arbol_huffman(frecuencias)
+            codigos = {}
+            generar_codigos_huffman(arbol, '', codigos)
+
+            texto_codificado = codificar_huffman(texto_original, arbol)
+
+            texto_codificado_texto.delete("1.0", "end")
+            texto_codificado_texto.insert("1.0", texto_codificado)
+
+            tabla_huffman_texto.delete("1.0", "end")
+            tabla_huffman_texto.insert("1.0", "Letra\tFrecuencia\t\tCódigo Huffman\n")
+            for letra, codigo in codigos.items():
+                frecuencia = frecuencias[letra]
+                tabla_huffman_texto.insert("end", f"{letra}\t{frecuencia}\t\t{codigo}\n")
+
+            bytes_originales_label["text"] = f"Cantidad de bytes que usa el texto original: {len(texto_original) * 8}"
+            bytes_codificados_label["text"] = f"Cantidad de bytes que usa el texto codificado: {len(texto_codificado)}"
+            porcentaje_reduccion_label["text"] = f"El número de bits utilizados se ha reducido a: {round(len(texto_codificado) / (len(texto_original) * 8) * 100, 2)}%"
+
+            archivo_salida = f"{nombre_archivo}_codificado.txt"
+            ruta_salida = os.path.join(ruta_carpeta, archivo_salida)
+            with open(ruta_salida, "w") as archivo:
+                archivo.write(texto_codificado)
+
+            messagebox.showinfo("Codificación Completada", "El archivo ha sido codificado y guardado como \""+ archivo_salida+"\"")
+
+    ventana_codificar_archivo = tk.Toplevel(ventana_principal)
+    ventana_codificar_archivo.title("Codificar Archivo")
+
+    etiqueta_titulo = tk.Label(ventana_codificar_archivo, text="Codificar Archivo", font=("Helvetica", 16))
+    etiqueta_titulo.pack(pady=20)
+
+    boton_seleccionar_archivo = tk.Button(ventana_codificar_archivo, text="Seleccionar Archivo", command=codificar_archivo)
+    boton_seleccionar_archivo.pack()
+
+    etiqueta_resultados = tk.Label(ventana_codificar_archivo, text="Resultados:")
+    etiqueta_resultados.pack()
+
+    etiqueta_texto_codificado = tk.Label(ventana_codificar_archivo, text="Texto Codificado:")
+    etiqueta_texto_codificado.pack()
+
+    texto_codificado_texto = tk.Text(ventana_codificar_archivo, width=50, height=10)
+    texto_codificado_texto.pack()
+
+    etiqueta_tabla_huffman = tk.Label(ventana_codificar_archivo, text="Tabla Huffman:")
+    etiqueta_tabla_huffman.pack()
+
+    tabla_huffman_texto = tk.Text(ventana_codificar_archivo, width=50, height=10)
+    tabla_huffman_texto.pack()
+
+    bytes_originales_label = tk.Label(ventana_codificar_archivo, text="")
+    bytes_originales_label.pack()
+
+    bytes_codificados_label = tk.Label(ventana_codificar_archivo, text="")
+    bytes_codificados_label.pack()
+
+    porcentaje_reduccion_label = tk.Label(ventana_codificar_archivo, text="")
+    porcentaje_reduccion_label.pack()
+
+    ventana_codificar_archivo.mainloop()
+
+def salir():
+    ventana_principal.destroy()
+
+ventana_principal = tk.Tk()
+ventana_principal.title("Menú Principal")
+
+ventana_principal.geometry("400x300")
+
+etiqueta_titulo = tk.Label(ventana_principal, text="Menú Principal", font=("Helvetica", 16))
+etiqueta_titulo.pack(pady=20)
+
+boton_codificar_texto = tk.Button(ventana_principal, text="Codificar Texto", command=abrir_ventana_codificar_texto)
+boton_codificar_texto.pack()
+
+boton_codificar_archivo = tk.Button(ventana_principal, text="Codificar Archivo", command=abrir_ventana_codificar_archivo)
+boton_codificar_archivo.pack()
+
+boton_salir = tk.Button(ventana_principal, text="Salir", command=salir)
+boton_salir.pack()
+
+ventana_principal.mainloop()
